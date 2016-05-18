@@ -1,0 +1,33 @@
+{
+  "name": "rhc",
+  "version": "1.0.0",
+  "description": "A Redis hogan.js cache",
+  "main": "app.js",
+  "dependencies": {
+    "hogan.js": "^3.0.2",
+    "redis": "^2.6.0-2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Defkil/rhc.git"
+  },
+  "keywords": [
+    "redis",
+    "cache",
+    "hogan.js",
+    "http",
+    "express",
+    "cache",
+    "fast"
+  ],
+  "author": "Oliver Grüttner <oliver@node4you.de> (http//npm.node4you.de)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Defkil/rhc/issues"
+  },
+  "homepage": "https://github.com/Defkil/rhc#readme"
+}
