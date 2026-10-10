@@ -1,4 +1,14 @@
 # Redis-hogan-cache
+
+> **Deprecated:** this package is no longer developed, and hogan.js has had no release since 2014.
+> For new projects use a maintained template engine such as [Handlebars](https://handlebarsjs.com/)
+> (Mustache-compatible, for Express via [express-handlebars](https://www.npmjs.com/package/express-handlebars)),
+> [Eta](https://eta.js.org/), [LiquidJS](https://liquidjs.com/) or [EJS](https://ejs.co/), and let Express keep
+> compiled views in memory (`view cache`, on by default in production).
+>
+> Versions before 1.0.3 stored compiled templates in Redis and ran them with `eval`: anyone who could write to
+> that Redis could run code in your app. Update to 1.0.3 at least.
+
 Use hogan.js with a cache in redis. You can use a already defined redis client
 
 Require Redis-hogan-cache
@@ -31,7 +41,7 @@ rhc({options})
  * @param {Object} options.redis.port     [Optional] Redis server port
  * @param {Object} options.redis.db       [Optional] Redis server database; dafault: `1`
  * @param {string} options.prefix         [Optional] A prefix to append to key names in Redis; default: `rhc:`
- * @param {int}    options.expire         [Optional] Template expire; default: `never`
+ * @param {int}    options.expire         [Optional] Template expire in seconds or `never`; default: `10`
  */
 ```
 

@@ -7,60 +7,68 @@ var hogan = require('hogan.js')
  *
  * @param {Object} options                Settings to use to RHC
  * @param {Object} options.client         A Redis client instance
- * @param {Object} options.redis          [Optional] Redis client information, if options.client not used 
+ * @param {Object} options.redis          [Optional] Redis client information, if options.client not used
  * @param {Object} options.redis.hostname [Optional] Redis server hostname
  * @param {Object} options.redis.password [Optional] Redis server password
  * @param {Object} options.redis.port     [Optional] Redis server port
  * @param {Object} options.redis.db       [Optional] Redis server database; dafault: `1`
  * @param {string} options.prefix         [Optional] A prefix to append to key names in Redis; default: `rhc:`
- * @param {int}    options.expire         [Optional] Template expire; default: `never`
+ * @param {int}    options.expire         [Optional] Template expire in seconds or `never`; default: `10`
  */
 module.exports = function (options) {
     if(!options.prefix)
         options.prefix = 'rhc:'
     if(!options.client){
-        options.client = redis.createClient(options.redis.port, options.redis.hostname)
-        if(options.redis.password)
-            options.client.auth(options.redis.password, function (err) {if(err) new Error(err)})
-        if(!options.redis.port)
-            options.redis.port = 6379
-        if(!options.redis.db)
-            options.redis.db = 1
-        options.client.select(options.redis.db, function(err){if(err) new Error(err)})
+        // Without the offline queue a Redis outage fails fast and render falls back to the file
+        options.client = redis.createClient({
+            host: options.redis.hostname,
+            port: options.redis.port,
+            password: options.redis.password || undefined,
+            db: options.redis.db === undefined ? 1 : options.redis.db,
+            enable_offline_queue: false
+        })
+        // Without a listener a lost Redis connection would crash the process
+        options.client.on('error', ignore)
     }
     if(!options.expire)
         options.expire = 10
     module.options = options
 }
 
+function ignore(){}
+
 function expire(name, time){
     if(!time)
         time = module.options.expire
-    if(time !== 'never'){
-        module.options.client.expire(name, time, function(err){
-            if(err) new Error(err)
-        })
-    }
+    if(time !== 'never')
+        module.options.client.expire(name, time, ignore)
 }
 
 module.exports.render = function(filePath, options, callback){
-    module.options.client.get(module.options.prefix + filePath, function(errRedis, response){
-         if(errRedis) new Error(errRedis)
-         if(response === null){
-            fs.readFile(filePath, function (errFS, content) {
-                if(errFS) new Error(errFS)
-                module.options.client.set(module.options.prefix + filePath
-                 , 'new hogan.Template(' + hogan.compile(content.toString(), {asString: true}) + ')'
-                 , function(errRedisCache,responseCache){
-                    if(errRedisCache) new Error(errRedisCache)
-                    if(responseCache !== 'OK') new Error(responseCache)
-                })
-                expire(module.options.prefix + filePath, options.expire)
-                return callback(null, hogan.compile(content.toString()).render(options))
-            })
-         }else{
-             expire(module.options.prefix + filePath, options.expire)
-             return callback(null, eval(response).render(options))
-         }
+    // Cache the template source, not compiled code: up to 1.0.2 the cache held code that
+    // render ran with eval, so anyone who could write to Redis could run code in the app
+    var key = module.options.prefix + 'source:' + filePath
+    module.options.client.get(key, function(errRedis, cached){
+        if(!errRedis && cached !== null){
+            expire(key, options.expire)
+            return render(cached)
+        }
+        fs.readFile(filePath, 'utf8', function (errFS, content) {
+            if(errFS)
+                return callback(errFS)
+            module.options.client.set(key, content, ignore)
+            expire(key, options.expire)
+            render(content)
+        })
     })
+
+    function render(template){
+        var html
+        try {
+            html = hogan.compile(template).render(options)
+        } catch (err) {
+            return callback(err)
+        }
+        callback(null, html)
+    }
 }
