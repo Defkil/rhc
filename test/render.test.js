@@ -8,9 +8,9 @@ var test = require('node:test')
 function fakeClient(entries){
     var store = new Map(entries)
     return {
-        get: function (key, cb) { cb(null, store.has(key) ? store.get(key) : null) },
-        set: function (key, value, cb) { store.set(key, value); cb(null, 'OK') },
-        expire: function (key, time, cb) { cb(null, 1) }
+        get: function (key) { return Promise.resolve(store.has(key) ? store.get(key) : null) },
+        set: function (key, value) { store.set(key, value); return Promise.resolve('OK') },
+        expire: function () { return Promise.resolve(1) }
     }
 }
 
@@ -42,7 +42,8 @@ test('treats cached content as a template, never as code', async function () {
 
 test('falls back to the file when Redis fails', async function () {
     var client = fakeClient()
-    client.get = function (key, cb) { cb(new Error('Redis is down')) }
+    client.get = function () { return Promise.reject(new Error('Redis is down')) }
+    client.set = function () { throw new Error('The client is closed') }
     rhc({ client: client })
     assert.deepStrictEqual(await render(template('{{message}}'), { message: 'ok' }), { err: null, html: 'ok' })
 })

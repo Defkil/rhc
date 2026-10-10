@@ -6,7 +6,7 @@ var hogan = require('hogan.js')
  * Create a Redis Hogan Cache
  *
  * @param {Object} options                Settings to use to RHC
- * @param {Object} options.client         A Redis client instance
+ * @param {Object} options.client         A connected node-redis client, version 4 or later
  * @param {Object} options.redis          [Optional] Redis client information, if options.client not used
  * @param {Object} options.redis.hostname [Optional] Redis server hostname
  * @param {Object} options.redis.password [Optional] Redis server password
@@ -21,14 +21,14 @@ module.exports = function (options) {
     if(!options.client){
         // Without the offline queue a Redis outage fails fast and render falls back to the file
         options.client = redis.createClient({
-            host: options.redis.hostname,
-            port: options.redis.port,
+            socket: { host: options.redis.hostname, port: options.redis.port },
             password: options.redis.password || undefined,
-            db: options.redis.db === undefined ? 1 : options.redis.db,
-            enable_offline_queue: false
+            database: options.redis.db === undefined ? 1 : options.redis.db,
+            disableOfflineQueue: true
         })
         // Without a listener a lost Redis connection would crash the process
         options.client.on('error', ignore)
+        options.client.connect().catch(ignore)
     }
     if(!options.expire)
         options.expire = 10
@@ -37,26 +37,31 @@ module.exports = function (options) {
 
 function ignore(){}
 
+// Redis is only a cache: a failed command counts as a miss and never fails a render
+function attempt(command){
+    return Promise.resolve().then(command).catch(function () { return null })
+}
+
 function expire(name, time){
     if(!time)
         time = module.options.expire
     if(time !== 'never')
-        module.options.client.expire(name, time, ignore)
+        attempt(function () { return module.options.client.expire(name, time) })
 }
 
 module.exports.render = function(filePath, options, callback){
     // Cache the template source, not compiled code: up to 1.0.2 the cache held code that
     // render ran with eval, so anyone who could write to Redis could run code in the app
     var key = module.options.prefix + 'source:' + filePath
-    module.options.client.get(key, function(errRedis, cached){
-        if(!errRedis && cached !== null){
+    attempt(function () { return module.options.client.get(key) }).then(function (cached) {
+        if(cached !== null){
             expire(key, options.expire)
             return render(cached)
         }
         fs.readFile(filePath, 'utf8', function (errFS, content) {
             if(errFS)
                 return callback(errFS)
-            module.options.client.set(key, content, ignore)
+            attempt(function () { return module.options.client.set(key, content) })
             expire(key, options.expire)
             render(content)
         })

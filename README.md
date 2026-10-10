@@ -7,7 +7,8 @@
 > compiled views in memory (`view cache`, on by default in production).
 >
 > Versions before 1.0.3 stored compiled templates in Redis and ran them with `eval`: anyone who could write to
-> that Redis could run code in your app. Update to 1.0.3 at least.
+> that Redis could run code in your app. Update to 1.0.3 at least. 2.x needs Node 20 and a node-redis client of
+> version 4 or later; 1.0.3 keeps the callback client of node-redis 3.
 
 Use hogan.js with a cache in redis. You can use a already defined redis client
 
@@ -23,8 +24,8 @@ Create a new RHC instance
 //with a new redis client
 rhc({prefix:'rhc:', expire:'10000', redis:{hostname:'localhost', password:'', port:6379, db:0}})
 
-//with an already created redis client
-//redisClient = = redis.createClient()
+//with an already created and connected redis client (node-redis 4 or later)
+//redisClient = await redis.createClient().connect()
 rhc({prefix:'rhc:', expire:'10000', client:redisClient})
 ```
 
@@ -34,7 +35,7 @@ rhc({prefix:'rhc:', expire:'10000', client:redisClient})
 rhc({options})
 /**
  * @param {Object} options                Settings to use to RHC
- * @param {Object} options.client         A Redis client instance
+ * @param {Object} options.client         A connected node-redis client, version 4 or later
  * @param {Object} options.redis          [Optional] Redis client information, if options.client not used 
  * @param {Object} options.redis.hostname [Optional] Redis server hostname
  * @param {Object} options.redis.password [Optional] Redis server password

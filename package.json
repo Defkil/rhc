@@ -1,6 +1,6 @@
 {
   "name": "redis-hogan-cache",
-  "version": "1.0.3",
+  "version": "2.0.0",
   "description": "A Redis hogan.js cache",
   "main": "app.js",
   "files": [
@@ -8,7 +8,10 @@
   ],
   "dependencies": {
     "hogan.js": "^3.0.2",
-    "redis": "^3.1.2"
+    "redis": "^6.3.0"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "scripts": {
     "test": "node --test test/render.test.js"
